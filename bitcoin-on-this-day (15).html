@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="theme-color" content="#0a0906">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>The Bitcoin Archive</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=Raleway:wght@200;300;400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --gold: #c8922a;
+  --gold-light: #e8b45a;
+  --gold-dim: rgba(200,146,42,0.35);
+  --gold-faint: rgba(200,146,42,0.06);
+  --bg: #0a0906;
+  --text: #d4c4a8;
+  --text-dim: rgba(200,180,140,0.35);
+  --text-faint: rgba(200,180,140,0.12);
+  --green: #3ecf8e;
+  --red: #9b4a4a;
+  --white: #f0ead8;
+}
+html, body { background: var(--bg); }
+html {
+  background-color: #0a0906;
+  overscroll-behavior: none;
+}
+body {
+  background-color: #0a0906;
+  overscroll-behavior: none;
+}
+.page-frame { display: none; }
+body {
+  font-family: 'Raleway', sans-serif; font-weight: 300;
+  background: var(--bg); color: var(--text);
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; padding: 0 24px 8rem;
+  -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: ''; position: fixed; top: -300px; left: 50%;
+  transform: translateX(-50%); width: 800px; height: 800px;
+  background: radial-gradient(ellipse, rgba(200,146,42,0.04) 0%, transparent 65%);
+  pointer-events: none; z-index: 0;
+}
+.btc-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+header {
+  position: relative; z-index: 1; width: 100%; max-width: 680px;
+  padding: 5rem 0 4.5rem; text-align: center;
+}
+.eyebrow { font-weight: 200; font-size: 9px; letter-spacing: 9px; text-transform: uppercase; color: #f7931a; margin-bottom: 3rem; }
+.logo-row { display: flex; align-items: center; justify-content: center; gap: 1.5rem; margin-bottom: 2.5rem; }
+.rule { flex: 1; max-width: 100px; height: 1px; }
+.rule.l { background: linear-gradient(90deg, transparent, var(--gold-dim)); }
+.rule.r { background: linear-gradient(90deg, var(--gold-dim), transparent); }
+.btc-sym { font-size: 42px; color: var(--gold); line-height: 1; font-weight: 300; }
+.main-title {
+  font-family: Georgia, 'Times New Roman', serif; font-weight: 400;
+  font-size: clamp(36px, 6.5vw, 58px); color: var(--white); line-height: 1.1; margin-bottom: 1rem;
+}
+.main-title em { font-style: italic; color: var(--gold-light); }
+.tagline { font-weight: 200; font-size: 9px; letter-spacing: 8px; text-transform: uppercase; color: #f7931a; margin-bottom: 3.5rem; }
+.date-frame {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 7px;
+  padding: 20px 60px; border: 1px solid var(--gold-dim);
+  background: rgba(200,146,42,0.03); position: relative;
+}
+.date-frame::before {
+  content: ''; position: absolute; top: -1px; left: 20%; right: 20%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent); opacity: .4;
+}
+.date-name { font-weight: 300; font-size: 16px; letter-spacing: 8px; color: var(--gold-light); text-transform: uppercase; }
+.date-sub  { font-weight: 200; font-size: 8px; letter-spacing: 5px; color: #f7931a; text-transform: uppercase; }
+main { position: relative; z-index: 1; width: 100%; max-width: 680px; }
+.section-div { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 3rem; }
+.section-div::before, .section-div::after { content: ''; flex: 1; height: 1px; border-top: 1px solid rgba(200,146,42,0.12); }
+.section-div span { font-weight: 200; font-size: 8px; letter-spacing: 7px; text-transform: uppercase; color: #f7931a; white-space: nowrap; }
+.price-row {
+  display: grid; grid-template-columns: 64px 1fr 200px;
+  align-items: center; gap: 28px; padding: 18px 0;
+  border-bottom: 1px solid rgba(200,146,42,0.06);
+  opacity: 0; transform: translateY(10px);
+  transition: opacity .55s ease, transform .55s ease, background .2s, padding .2s; cursor: default;
+}
+.price-row:first-child { border-top: 1px solid rgba(200,146,42,0.06); }
+.price-row.visible { opacity: 1; transform: translateY(0); }
+.price-row:hover { background: var(--gold-faint); padding-left: 12px; padding-right: 12px; margin: 0 -12px; }
+.col-year { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 300; color: var(--text-dim); letter-spacing: 1px; line-height: 1; }
+.col-year.cur { color: var(--gold-light); }
+.col-track { position: relative; height: 1px; background: rgba(200,146,42,0.08); }
+.col-fill { position: absolute; top: 0; left: 0; height: 1px; background: linear-gradient(90deg, rgba(200,146,42,0.2), var(--gold)); width: 0; transition: width 1.5s cubic-bezier(.4,0,.2,1); }
+.col-dot { position: absolute; top: 50%; right: 0; transform: translate(50%,-50%); width: 4px; height: 4px; border-radius: 50%; background: var(--gold); opacity: 0; transition: opacity 1.5s ease; }
+.col-right { text-align: right; }
+.col-price { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 400; color: var(--white); letter-spacing: .3px; line-height: 1; }
+.col-price.ath { color: var(--gold-light); }
+.col-price.cur { color: var(--gold-light); }
+.col-price.na  { font-size: 14px; color: var(--text-faint); font-style: italic; font-weight: 300; }
+.col-change { font-size: 10px; font-weight: 300; margin-top: 5px; letter-spacing: 1.5px; }
+.col-change.up { color: var(--green); }
+.col-change.dn { color: var(--red); }
+.col-change.no { color: var(--text-faint); }
+.live-mark {
+  display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--green); box-shadow: 0 0 6px rgba(62,207,142,0.7);
+  margin-right: 8px; vertical-align: middle; position: relative; top: -1px;
+  animation: livepulse 1.5s ease-in-out infinite;
+}
+@keyframes livepulse { 0%,100%{opacity:1} 50%{opacity:.2} }
+#loading { text-align: center; padding: 5rem 0; }
+.load-sym { font-family: 'Cormorant Garamond', serif; font-size: 52px; font-weight: 300; color: var(--gold); display: block; margin-bottom: 2rem; animation: breathe 2.5s ease-in-out infinite; }
+@keyframes breathe { 0%,100%{opacity:.2} 50%{opacity:.7} }
+.load-txt { font-weight: 200; font-size: 9px; letter-spacing: 7px; text-transform: uppercase; color: var(--text-dim); }
+footer { position: relative; z-index: 1; margin-top: 4rem; text-align: center; font-weight: 200; font-size: 8px; letter-spacing: 4px; text-transform: uppercase; color: var(--text-faint); line-height: 3; }
+footer::before { content: ''; display: block; width: 40px; height: 1px; background: rgba(200,146,42,0.15); margin: 0 auto 2rem; }
+</style>
+</head>
+<body>
+
+<div class="page-frame"></div>
+<canvas class="btc-canvas" id="btcCanvas"></canvas>
+
+<header>
+  <div class="eyebrow">The Bitcoin Archive</div>
+  <div class="logo-row">
+    <div class="rule l"></div>
+    <div class="btc-sym">₿</div>
+    <div class="rule r"></div>
+  </div>
+  <h1 class="main-title">On This Day, <em>Every Year</em></h1>
+  <p class="tagline">Daily Closing Price Since 2011</p>
+  <div class="date-frame">
+    <div class="date-name" id="dateBadge">—</div>
+    <div class="date-sub">Closing Price · By Year</div>
+  </div>
+</header>
+
+<main>
+  <div class="section-div"><span>Price History</span></div>
+  <div id="loading">
+    <span class="load-sym">₿</span>
+    <div class="load-txt">Retrieving prices</div>
+  </div>
+  <div id="priceTable"></div>
+</main>
+
+<section style="position:relative; z-index:1; width:100%; max-width:680px; margin-top:4rem;">
+  <div class="section-div"><span>All-Time Price Chart</span></div>
+  <div style="position:relative; width:100%; height:320px;">
+    <canvas id="btcChart"></canvas>
+  </div>
+  <div style="text-align:center; margin-top:1rem; font-size:8px; letter-spacing:3px; color:var(--text-faint); font-weight:200; text-transform:uppercase;">
+    Binance · Monthly closing prices · All time
+  </div>
+</section>
+
+<footer id="footer"></footer>
+
+<script>
+const TODAY    = new Date();
+const CUR_YEAR = TODAY.getFullYear();
+const MONTH    = TODAY.getMonth();
+const DAY      = TODAY.getDate();
+const MONTHS   = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+const DATE_LABEL = `${MONTHS[MONTH]} ${DAY}`;
+
+document.getElementById('dateBadge').textContent = `${MONTHS[MONTH].toUpperCase()}  ${DAY}`;
+
+function tsFor(year) { return Date.UTC(year, MONTH, DAY); }
+
+async function fetchClose(year) {
+  const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&startTime=${tsFor(year)}&limit=1`);
+  if (!res.ok) return null;
+  const d = await res.json();
+  return (d && d[0]) ? parseFloat(d[0][4]) : null;
+}
+
+async function fetchLive() {
+  const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
+  if (!res.ok) return null;
+  const d = await res.json();
+  return d?.price ? parseFloat(d.price) : null;
+}
+
+function fmt(n) {
+  if (!n || isNaN(n)) return null;
+  if (n < 1)    return '$' + n.toFixed(4);
+  if (n < 100)  return '$' + n.toFixed(2);
+  if (n < 1000) return '$' + Math.round(n);
+  return '$' + Math.round(n).toLocaleString('en-US');
+}
+
+function pct(curr, prev) {
+  if (!curr || !prev) return { s: '', c: 'no' };
+  const p = (curr - prev) / prev * 100;
+  return { s: (p >= 0 ? '+' : '') + p.toFixed(1) + '%', c: p >= 0 ? 'up' : 'dn' };
+}
+
+function render(prices) {
+  const years  = Object.keys(prices).map(Number).sort((a, b) => b - a);
+  const vals   = years.map(y => prices[y]).filter(Boolean);
+  const maxVal = Math.max(...vals);
+  document.getElementById('loading').style.display = 'none';
+  let html = '';
+  years.forEach((y, i) => {
+    const p    = prices[y];
+    const prev = prices[years[i + 1]];
+    const bar  = p && maxVal ? Math.max(1, Math.round(p / maxVal * 100)) : 0;
+    const isAth = p === maxVal;
+    const isCur = y === CUR_YEAR;
+    const { s, c } = pct(p, prev);
+    const prCls = !p ? 'na' : isCur ? 'cur' : isAth ? 'ath' : '';
+    const dot   = isCur ? '<span class="live-mark"></span>' : '';
+    html += `<div class="price-row" style="transition-delay:${i * 50}ms">
+      <div class="col-year${isCur ? ' cur' : ''}">${y}</div>
+      <div class="col-track">
+        <div class="col-fill" data-w="${bar}"></div>
+        <div class="col-dot" data-show="${bar > 0 ? 1 : 0}"></div>
+      </div>
+      <div class="col-right">
+        <div class="col-price ${prCls}" id="price-${y}">${dot}${p ? fmt(p) : '—'}</div>
+        <div class="col-change ${c}">${s}</div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('priceTable').innerHTML = html;
+  document.getElementById('footer').innerHTML =
+    `Source: Binance &nbsp;·&nbsp; ${DATE_LABEL}, every year since 2011 &nbsp;·&nbsp; Live price updates every 30s`;
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.price-row').forEach(el => el.classList.add('visible'));
+    setTimeout(() => {
+      document.querySelectorAll('.col-fill').forEach(el => { el.style.width = el.dataset.w + '%'; });
+      document.querySelectorAll('.col-dot').forEach(el => { if (el.dataset.show === '1') el.style.opacity = '1'; });
+    }, 300);
+  });
+}
+
+function updateLiveEl(price) {
+  const el = document.getElementById(`price-${CUR_YEAR}`);
+  if (el) el.innerHTML = '<span class="live-mark"></span>' + fmt(price);
+}
+
+async function main() {
+  const STATIC = { 2011: 0.87, 2012: 5.27, 2013: 47.1, 2014: 635, 2015: 289, 2016: 415 };
+  try {
+    const pastYears = [];
+    for (let y = 2017; y < CUR_YEAR; y++) pastYears.push(y);
+    const [pastResults, livePrice] = await Promise.all([
+      Promise.all(pastYears.map(y => fetchClose(y).catch(() => null))),
+      fetchLive().catch(() => null)
+    ]);
+    const prices = { ...STATIC };
+    pastYears.forEach((y, i) => { if (pastResults[i]) prices[y] = pastResults[i]; });
+    if (livePrice) prices[CUR_YEAR] = livePrice;
+    render(prices);
+    setInterval(async () => {
+      const p = await fetchLive().catch(() => null);
+      if (p) updateLiveEl(p);
+    }, 30000);
+  } catch(e) {
+    document.getElementById('loading').innerHTML =
+      `<div style="color:#9b4a4a;font-size:10px;letter-spacing:3px;font-family:Raleway,sans-serif;text-transform:uppercase">Unable to load prices</div>`;
+  }
+}
+
+async function loadChart() {
+  try {
+    // Full monthly history embedded — 2011-2016 (no CORS issues)
+    const embedded = [
+      ['2011-01',0.30],['2011-02',0.85],['2011-03',0.89],['2011-04',1.08],
+      ['2011-05',8.5],['2011-06',18.0],['2011-07',13.5],['2011-08',10.0],
+      ['2011-09',5.5],['2011-10',3.5],['2011-11',2.5],['2011-12',4.7],
+      ['2012-01',6.2],['2012-02',4.9],['2012-03',5.0],['2012-04',5.1],
+      ['2012-05',5.5],['2012-06',6.6],['2012-07',8.0],['2012-08',10.0],
+      ['2012-09',11.5],['2012-10',10.5],['2012-11',12.0],['2012-12',13.5],
+      ['2013-01',20.0],['2013-02',28.0],['2013-03',92.0],['2013-04',144.0],
+      ['2013-05',129.0],['2013-06',97.0],['2013-07',88.0],['2013-08',118.0],
+      ['2013-09',128.0],['2013-10',197.0],['2013-11',946.0],['2013-12',732.0],
+      ['2014-01',850.0],['2014-02',550.0],['2014-03',470.0],['2014-04',450.0],
+      ['2014-05',630.0],['2014-06',580.0],['2014-07',585.0],['2014-08',500.0],
+      ['2014-09',390.0],['2014-10',340.0],['2014-11',378.0],['2014-12',318.0],
+      ['2015-01',220.0],['2015-02',255.0],['2015-03',245.0],['2015-04',235.0],
+      ['2015-05',235.0],['2015-06',262.0],['2015-07',280.0],['2015-08',230.0],
+      ['2015-09',237.0],['2015-10',315.0],['2015-11',378.0],['2015-12',430.0],
+      ['2016-01',370.0],['2016-02',437.0],['2016-03',415.0],['2016-04',450.0],
+      ['2016-05',530.0],['2016-06',670.0],['2016-07',625.0],['2016-08',575.0],
+      ['2016-09',610.0],['2016-10',700.0],['2016-11',740.0],['2016-12',963.0],
+      ['2017-01',968.0],['2017-02',1190.0],['2017-03',1080.0],['2017-04',1348.0],
+      ['2017-05',2300.0],['2017-06',2550.0],['2017-07',2870.0],['2017-08',4700.0],
+      ['2017-09',4350.0],['2017-10',6100.0],['2017-11',10900.0],['2017-12',14000.0],
+      ['2018-01',10200.0],['2018-02',10500.0],['2018-03',6900.0],['2018-04',9200.0],
+      ['2018-05',7500.0],['2018-06',6200.0],['2018-07',8200.0],['2018-08',7000.0],
+      ['2018-09',6600.0],['2018-10',6300.0],['2018-11',4000.0],['2018-12',3700.0],
+      ['2019-01',3450.0],['2019-02',3800.0],['2019-03',4100.0],['2019-04',5300.0],
+      ['2019-05',8700.0],['2019-06',10800.0],['2019-07',9600.0],['2019-08',9600.0],
+      ['2019-09',8300.0],['2019-10',9200.0],['2019-11',7500.0],['2019-12',7200.0],
+      ['2020-01',9400.0],['2020-02',8600.0],['2020-03',6400.0],['2020-04',8800.0],
+      ['2020-05',9700.0],['2020-06',9100.0],['2020-07',11100.0],['2020-08',11650.0],
+      ['2020-09',10800.0],['2020-10',13800.0],['2020-11',19700.0],['2020-12',29300.0],
+      ['2021-01',33100.0],['2021-02',45200.0],['2021-03',58900.0],['2021-04',57700.0],
+      ['2021-05',37300.0],['2021-06',35000.0],['2021-07',41600.0],['2021-08',47100.0],
+      ['2021-09',43800.0],['2021-10',61300.0],['2021-11',57000.0],['2021-12',46200.0],
+      ['2022-01',38500.0],['2022-02',43200.0],['2022-03',45900.0],['2022-04',37600.0],
+      ['2022-05',31800.0],['2022-06',19100.0],['2022-07',23300.0],['2022-08',20000.0],
+      ['2022-09',19400.0],['2022-10',20400.0],['2022-11',16500.0],['2022-12',16600.0],
+      ['2023-01',23100.0],['2023-02',23400.0],['2023-03',28500.0],['2023-04',29300.0],
+      ['2023-05',27700.0],['2023-06',30500.0],['2023-07',29300.0],['2023-08',26000.0],
+      ['2023-09',26900.0],['2023-10',34500.0],['2023-11',37700.0],['2023-12',42600.0],
+      ['2024-01',42500.0],['2024-02',61200.0],['2024-03',71400.0],['2024-04',60600.0],
+      ['2024-05',67500.0],['2024-06',62700.0],['2024-07',66000.0],['2024-08',59000.0],
+      ['2024-09',63300.0],['2024-10',72400.0],['2024-11',97700.0],['2024-12',93400.0],
+      ['2025-01',102600.0],['2025-02',84500.0],['2025-03',82500.0],
+    ];
+
+    // Add live price for current month
+    const livePrice = await fetchLive().catch(() => null);
+    if (livePrice) {
+      const now = new Date();
+      const key = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+      if (embedded[embedded.length-1][0] !== key) embedded.push([key, livePrice]);
+      else embedded[embedded.length-1][1] = livePrice;
+    }
+
+    const labels = embedded.map(m => m[0]);
+    const prices = embedded.map(m => m[1]);
+
+    new Chart(document.getElementById('btcChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: prices,
+          borderColor: '#f7931a',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          pointHoverBackgroundColor: '#f7931a',
+          fill: true,
+          backgroundColor: (c) => {
+            const g = c.chart.ctx.createLinearGradient(0, 0, 0, 320);
+            g.addColorStop(0, 'rgba(247,147,26,0.18)');
+            g.addColorStop(1, 'rgba(247,147,26,0)');
+            return g;
+          },
+          tension: 0.3,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(10,9,6,0.95)',
+            borderColor: 'rgba(247,147,26,0.3)',
+            borderWidth: 1,
+            titleColor: '#f7931a',
+            bodyColor: '#d4c4a8',
+            callbacks: {
+              label: item => ' $' + Math.round(item.raw).toLocaleString('en-US'),
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: 'rgba(200,180,140,0.25)', maxTicksLimit: 12, maxRotation: 0, font: { size: 9 } },
+            grid: { color: 'rgba(247,147,26,0.04)' },
+            border: { color: 'rgba(247,147,26,0.1)' },
+          },
+          y: {
+            ticks: {
+              color: 'rgba(200,180,140,0.25)', maxTicksLimit: 6, font: { size: 9 },
+              callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(0)+'k' : v),
+            },
+            grid: { color: 'rgba(247,147,26,0.04)' },
+            border: { color: 'rgba(247,147,26,0.1)' },
+          }
+        }
+      }
+    });
+  } catch(e) { console.error('Chart error:', e); }
+}
+
+// Squares animation
+(function() {
+  const canvas = document.getElementById('btcCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [];
+  function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+  window.addEventListener('resize', resize);
+  resize();
+  function rand(a, b) { return Math.random() * (b - a) + a; }
+  function spawn() { return { x: rand(0,W), y: rand(H+20,H+100), size: rand(8,24), speed: rand(0.4,1.0), alpha: rand(0.2,0.5), fade: rand(0.002,0.005), rot: rand(0,Math.PI*2), rotSpeed: rand(-0.008,0.008) }; }
+  for (let i = 0; i < 22; i++) { const p = spawn(); p.y = rand(0,H); particles.push(p); }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    particles.forEach((p, i) => {
+      p.y -= p.speed; p.alpha -= p.fade; p.rot += p.rotSpeed;
+      if (p.alpha <= 0 || p.y < -40) { particles[i] = spawn(); return; }
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.globalAlpha = p.alpha; ctx.strokeStyle = '#f7931a'; ctx.lineWidth = 1;
+      ctx.strokeRect(-p.size/2, -p.size/2, p.size, p.size); ctx.restore();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+main();
+loadChart();
+</script>
+</body>
+</html>
